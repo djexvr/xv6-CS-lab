@@ -75,7 +75,14 @@ sys_sleep(void)
 
 uint64
 sys_nice(void){
-  return 0;
+  int pid;
+  int priority;
+
+  if (argint(0, &pid) < 0 || argint(1, &priority) < 0 || priority < 0 || priority >= NPRIO) {
+    return -1;
+  }
+
+  return nice(pid, priority);
 }
 
 uint64
