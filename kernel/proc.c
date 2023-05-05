@@ -501,6 +501,29 @@ wait(uint64 addr)
   }
 }
 
+// Returns a runnable proc of the highest priority
+// Return 0 if no runnable process are available
+// otherwise returns a process of the highest priority
+// while holding the proc lock and the prio_list lock
+struct proc*
+pick_highest_priority_runnable_proc(){
+  for (int i = 0; i < 10 ; i++) {
+    struct list_proc* list_p;
+    acquire(&prio_lock);
+    list_p = prio[i];
+    while(list_p != 0){
+      acquire(&list_p->p->lock);
+      if (list_p->p->state == RUNNABLE) {
+       return list_p->p;
+      }
+      release(&list_p->p->lock);
+      list_p = list_p->next;
+    }
+    release(&prio_lock);
+  };
+  return 0;
+}
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
