@@ -731,6 +731,10 @@ kill(int pid)
   return -1;
 }
 
+int nice(int pid, int priority) {
+  return 0;
+}
+
 // Copy to either a user address, or kernel address,
 // depending on usr_dst.
 // Returns 0 on success, -1 on error.
