@@ -732,6 +732,27 @@ kill(int pid)
 }
 
 int nice(int pid, int priority) {
+  struct proc *p;
+
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&prio_lock);
+    acquire(&p->lock);
+
+    if(p->pid == pid) {
+
+      remove_from_prio_queue(p);
+      p->priority = priority;
+      insert_into_prio_queue(p);
+
+      release(&p->lock);
+      release(&prio_lock);
+
+      return 1;
+    }
+
+    release(&p->lock);
+    release(&prio_lock);
+  }
   return 0;
 }
 
