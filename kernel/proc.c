@@ -254,6 +254,7 @@ userinit(void)
 {
   struct proc *p;
 
+  acquire(&prio_lock);
   p = allocproc();
   initproc = p;
   
@@ -271,7 +272,10 @@ userinit(void)
   p->cwd = namei("/");
   p->state = RUNNABLE;
 
+  insert_into_prio_queue(p);
+
   release(&p->lock);
+  release(&prio_lock);
 }
 
 // Grow or shrink user memory by n bytes.
@@ -303,8 +307,11 @@ fork(void)
   struct proc *np;
   struct proc *p = myproc();
 
+  acquire(&prio_lock);
+
   // Allocate process.
   if((np = allocproc()) == 0){
+    release(&prio_lock);
     return -1;
   }
 
@@ -317,6 +324,7 @@ fork(void)
   np->sz = p->sz;
 
   np->parent = p;
+  np->priority = p->priority;
 
   // copy saved user registers.
   *(np->tf) = *(p->tf);
@@ -336,7 +344,10 @@ fork(void)
 
   np->state = RUNNABLE;
 
+  insert_into_prio_queue(np);
+
   release(&np->lock);
+  release(&prio_lock);
 
   return pid;
 }
@@ -415,6 +426,7 @@ exit(int status)
   // the parent-then-child rule says we have to lock it first.
   acquire(&original_parent->lock);
 
+  acquire(&prio_lock);
   acquire(&p->lock);
 
   // Give any children to init.
@@ -425,8 +437,10 @@ exit(int status)
 
   p->xstate = status;
   p->state = ZOMBIE;
+  remove_from_prio_queue(p);
 
   release(&original_parent->lock);
+  release(&prio_lock);
 
   // Jump into the scheduler, never to return.
   sched();
