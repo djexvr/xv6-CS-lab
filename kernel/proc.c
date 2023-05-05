@@ -547,31 +547,40 @@ scheduler(void)
     // cause a lost wakeup.
     intr_off();
 
-    int found = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if(p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
+    p = pick_highest_priority_runnable_proc();
+    if (p!=0) {
         p->state = RUNNING;
         c->proc = p;
+
+        // Move p to the end of the prio list
+        struct list_proc* tail;
+        struct list_proc* new_tail = bd_malloc(sizeof(struct list_proc));
+
+        remove_from_prio_queue(p);
+
+        tail = prio[p->priority];
+        new_tail->p = p;
+        new_tail->next = 0;
+
+        if (tail == 0){
+          prio[p->priority] = new_tail;
+        } else {
+          while(tail->next != 0) {
+           tail = tail->next;
+          };
+          tail->next = new_tail;
+        }
+
+        release(&prio_lock);
         swtch(&c->scheduler, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
 
-        found = 1;
-      }
-
-      // ensure that release() doesn't enable interrupts.
-      // again to avoid a race between interrupt and WFI.
-      c->intena = 0;
-
-      release(&p->lock);
-    }
-    if(found == 0){
+        c->intena = 0;
+        release(&p->lock);
+    } else {
       asm volatile("wfi");
     }
   }
